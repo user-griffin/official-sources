@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Preserve Watchmode's content-level Apple TV and Peacock destinations instead of rewriting them to service home pages.
+- Reject service roots and generic landing pages, and validate production URL shapes for Apple TV, Netflix, Prime Video, Disney+, Max, Hulu, Peacock, Paramount+, Tubi, and Pluto TV.
+- Fall back from an invalid Android destination to a valid title-level HTTPS destination.
+
 ## 1.1.0 - 2026-08-03
 
 - Discover all validated regional providers by default instead of limiting results to Apple TV+.

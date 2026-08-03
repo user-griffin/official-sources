@@ -13,7 +13,7 @@ export const severanceAppleOffer: NormalizedOffer = {
 };
 export const severanceExactEpisode: NormalizedOffer = {
   ...severanceAppleOffer,
-  destinationUrl: "https://tv.apple.com/episode/example",
+  destinationUrl: "https://tv.apple.com/us/episode/example/umc.cmc.episode",
   exactEpisode: true,
 };
 export const severanceSeriesFallback: NormalizedOffer = {

@@ -19,10 +19,7 @@ function label(offer: NormalizedOffer, config: AddonConfig): string {
       offer.seasonNumber !== undefined && offer.episodeNumber !== undefined
         ? `S${offer.seasonNumber}E${offer.episodeNumber}`
         : "the requested episode";
-    if (offer.serviceHomeFallback) {
-      return `Official service page • Search for the show and choose ${target}`;
-    }
-    return `Official series page • Choose ${target} in the provider app`;
+    return `Official title link • Choose ${target} in the provider app if needed`;
   }
   const action = offer.destinationKind === "web" ? "Open official website" : "Open official app";
   const home = offer.isHomeProvider ? "Home service • " : "";

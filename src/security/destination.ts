@@ -5,6 +5,22 @@ import type { DestinationKind } from "../types/models.js";
 const placeholders =
   /deeplinks? available|episode links? available|paid plans? only|upgrade your plan|^n\/?a$|^null$|^undefined$/i;
 const redirectHosts = new Set(["google.com", "www.google.com", "l.facebook.com", "t.co"]);
+const genericLandingPaths = new Set([
+  "",
+  "home",
+  "browse",
+  "search",
+  "signin",
+  "sign-in",
+  "login",
+  "signup",
+  "sign-up",
+  "movies",
+  "shows",
+  "series",
+  "tv",
+  "watch",
+]);
 
 function isPrivateIpv4(host: string): boolean {
   const parts = host.split(".").map(Number);
@@ -59,6 +75,42 @@ export function isSafeDestination(value: string | undefined): value is string {
   )
     return false;
   return true;
+}
+
+export function isTitleLevelDestination(value: string, _providerName = ""): boolean {
+  if (!isSafeDestination(value)) return false;
+  const url = new URL(value);
+  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  const path = url.pathname.replace(/^\/+|\/+$/g, "");
+  const segments = path.split("/").filter(Boolean);
+  if (
+    !segments.length ||
+    genericLandingPaths.has(path.toLowerCase()) ||
+    genericLandingPaths.has(segments.at(-1)!.toLowerCase())
+  )
+    return false;
+
+  if (host === "tv.apple.com")
+    return /(?:^|\/)(?:show|movie|episode)\//i.test(path) && /umc\.cmc\./i.test(path);
+  if (host.endsWith("netflix.com")) return /(?:^|\/)(?:title|watch)\/\d+/i.test(path);
+  if (host.endsWith("amazon.com") || host === "watch.amazon.com" || host.endsWith("primevideo.com"))
+    return (
+      /(?:^|\/)(?:gp\/video\/detail|detail)\/[^/]+/i.test(path) ||
+      (path.toLowerCase() === "detail" &&
+        /^amzn1\.dv\.gti\./i.test(url.searchParams.get("gti") ?? ""))
+    );
+  if (host.endsWith("disneyplus.com"))
+    return /(?:^|\/)(?:browse\/entity-|movies\/[^/]+\/|series\/[^/]+\/)[^/]+/i.test(path);
+  if (host.endsWith("max.com") || host.endsWith("hbomax.com"))
+    return /(?:^|\/)(?:shows|movies|video\/watch)\/[^/]+/i.test(path);
+  if (host.endsWith("hulu.com")) return /(?:^|\/)(?:movie|series|watch)\/[^/]+/i.test(path);
+  if (host.endsWith("peacocktv.com"))
+    return /(?:^|\/)(?:watch|stream-tv|stream-movies)\/[^/]+/i.test(path);
+  if (host.endsWith("paramountplus.com")) return /(?:^|\/)(?:shows|movies)\/[^/]+/i.test(path);
+  if (host.endsWith("tubitv.com")) return /(?:^|\/)(?:movies|tv-shows|series)\/[^/]+/i.test(path);
+  if (host.endsWith("pluto.tv")) return /(?:^|\/)on-demand\/[^/]+/i.test(path);
+
+  return !genericLandingPaths.has(segments[0]!.toLowerCase());
 }
 
 export class SafeDestinationResolver implements DestinationUrlResolver {

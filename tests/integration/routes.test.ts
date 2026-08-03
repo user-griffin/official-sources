@@ -81,7 +81,7 @@ describe("HTTP routes", () => {
     expect(
       (await request(setupResult.app).get(`/c/${configured()}/stream/series/tt11280740:1:3.json`))
         .body.streams[0].title,
-    ).toContain("Official series page");
+    ).toContain("Official title link");
     expect(
       (
         await request(setupResult.app).get(

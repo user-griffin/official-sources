@@ -35,7 +35,6 @@ export function filterOffers(offers: NormalizedOffer[], config: AddonConfig): No
       offer.destinationUrl ?? "",
       offer.exactEpisode,
       offer.seriesFallback,
-      offer.serviceHomeFallback ?? false,
       offer.quality ?? "",
     ].join("|");
     if (seen.has(key)) return false;

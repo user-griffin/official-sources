@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isSafeDestination, SafeDestinationResolver } from "../../src/security/destination.js";
+import {
+  isSafeDestination,
+  isTitleLevelDestination,
+  SafeDestinationResolver,
+} from "../../src/security/destination.js";
 import { placeholderDeepLink } from "../fixtures/offers.js";
 
 describe("destination security", () => {
@@ -29,4 +33,32 @@ describe("destination security", () => {
     ).toBe("android_tv"));
   it("rejects unverified application schemes", () =>
     expect(isSafeDestination("netflix://title/123")).toBe(false));
+  it.each([
+    "https://tv.apple.com/us/show/severance/umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+    "https://www.netflix.com/title/81280926",
+    "https://www.netflix.com/watch/81280926",
+    "https://www.amazon.com/gp/video/detail/B0CXGJ7Y7F",
+    "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+    "https://www.disneyplus.com/series/loki/6pARMvILBGzF",
+    "https://play.hbomax.com/video/watch/dae9e532-3714-4f2e-b758-fb9a13def902",
+    "https://www.hulu.com/series/example-8f40d0d4-0020-4c27",
+    "https://www.peacocktv.com/watch/asset/tv/example/123",
+    "https://www.paramountplus.com/shows/example/",
+    "https://tubitv.com/series/300012345/example",
+    "https://pluto.tv/us/on-demand/series/example/details",
+  ])("accepts content-level service URL %s", (url) =>
+    expect(isTitleLevelDestination(url)).toBe(true),
+  );
+  it.each([
+    "https://tv.apple.com/",
+    "https://www.netflix.com/browse",
+    "https://www.amazon.com/gp/video/",
+    "https://www.disneyplus.com/home",
+    "https://www.max.com/",
+    "https://www.hulu.com/hub/home",
+    "https://www.peacocktv.com/watch/home",
+    "https://www.paramountplus.com/shows/",
+    "https://tubitv.com/home",
+    "https://pluto.tv/us/on-demand",
+  ])("rejects service landing URL %s", (url) => expect(isTitleLevelDestination(url)).toBe(false));
 });

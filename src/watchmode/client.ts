@@ -2,7 +2,7 @@ import type { z } from "zod";
 import type { Cache } from "../cache/ttl-cache.js";
 import type { Logger } from "../logging/logger.js";
 import type { WatchmodeClientContract } from "../providers/interfaces.js";
-import { SafeDestinationResolver } from "../security/destination.js";
+import { isTitleLevelDestination, SafeDestinationResolver } from "../security/destination.js";
 import type {
   MediaTitleId,
   NormalizedOffer,
@@ -127,23 +127,6 @@ function isHomeProvider(providerName: string, homeProviderNames: string[]): bool
       home.length >= 3 && (provider === home || provider.includes(home) || home.includes(provider))
     );
   });
-}
-
-function isObviousEpisodeDestination(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return /\/(?:episode|episodes)\//i.test(parsed.pathname);
-  } catch {
-    return false;
-  }
-}
-
-function serviceHomepage(url: string): string | undefined {
-  try {
-    return `${new URL(url).origin}/`;
-  } catch {
-    return undefined;
-  }
 }
 
 export class WatchmodeClient implements WatchmodeClientContract {
@@ -365,25 +348,17 @@ export class WatchmodeClient implements WatchmodeClientContract {
         return catalogType === undefined || catalogType === "free";
       })
       .map((item) => {
-        let destination = this.destination.resolve({
-          ...(item.android_tv_url ? { android_tv: item.android_tv_url } : {}),
-          ...(item.android_url ? { android: item.android_url } : {}),
-          ...(item.web_url ? { web: item.web_url } : {}),
-        });
-        let serviceHomeFallback = false;
-        if (
-          seriesFallback &&
-          destination &&
-          isObviousEpisodeDestination(destination.url) &&
-          !isMarketplaceVariant(item.name) &&
-          isHomeProvider(item.name, homeProviderNames)
-        ) {
-          const homepage = serviceHomepage(destination.url);
-          if (homepage) {
-            destination = { url: homepage, kind: "web" };
-            serviceHomeFallback = true;
-          }
-        }
+        const destination = (
+          [
+            ["android_tv", item.android_tv_url],
+            ["android", item.android_url],
+            ["web", item.web_url],
+          ] as const
+        )
+          .map(([kind, value]) => this.destination.resolve(value ? { [kind]: value } : {}))
+          .find((candidate) =>
+            candidate ? isTitleLevelDestination(candidate.url, item.name) : false,
+          );
         const offerCurrency = currency(country);
         return {
           providerId: item.source_id,
@@ -397,7 +372,6 @@ export class WatchmodeClient implements WatchmodeClientContract {
             : {}),
           exactEpisode,
           seriesFallback,
-          ...(serviceHomeFallback ? { serviceHomeFallback: true } : {}),
           ...(episodeContext
             ? { seasonNumber: episodeContext.season, episodeNumber: episodeContext.episode }
             : {}),
@@ -407,10 +381,8 @@ export class WatchmodeClient implements WatchmodeClientContract {
       })
       .filter(
         (offer) =>
-          !seriesFallback ||
-          offer.serviceHomeFallback ||
           !offer.destinationUrl ||
-          !isObviousEpisodeDestination(offer.destinationUrl),
+          isTitleLevelDestination(offer.destinationUrl, offer.providerName),
       );
     return preferDirectServiceOffers(normalized);
   }

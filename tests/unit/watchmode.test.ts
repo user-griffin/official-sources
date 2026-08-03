@@ -64,8 +64,8 @@ describe("Watchmode client", () => {
                   name: "Apple TV+",
                   type: "sub",
                   region: "US",
-                  android_tv_url: "https://tv.apple.com/show/example",
-                  web_url: "https://tv.apple.com/show/example",
+                  android_tv_url: "https://tv.apple.com/us/show/example/umc.cmc.example",
+                  web_url: "https://tv.apple.com/us/show/example/umc.cmc.example",
                 },
               ]),
       );
@@ -220,7 +220,7 @@ describe("Watchmode client", () => {
                 name: "Apple TV+",
                 type: "sub",
                 region: "US",
-                web_url: "https://tv.apple.com/show/example",
+                web_url: "https://tv.apple.com/us/show/example/umc.cmc.example",
               },
             ]),
       ),
@@ -244,7 +244,7 @@ describe("Watchmode client", () => {
                 name: "Apple TV+",
                 type: "sub",
                 region: "US",
-                web_url: "https://tv.apple.com/show/example",
+                web_url: "https://tv.apple.com/us/show/example/umc.cmc.example",
               },
             ]),
       ),
@@ -296,7 +296,7 @@ describe("Watchmode client", () => {
 
     expect(offers.map((offer) => offer.providerName)).toEqual(["Tubi"]);
   });
-  it("uses a direct service homepage instead of an unrelated episode or channel variant", async () => {
+  it("preserves a title-associated Apple episode URL instead of replacing it with home", async () => {
     const fetcher = vi.fn((input: string | URL | Request) =>
       Promise.resolve(
         requestPath(input).endsWith("/details")
@@ -307,7 +307,7 @@ describe("Watchmode client", () => {
                 name: "AppleTV+",
                 type: "sub",
                 region: "US",
-                web_url: "https://tv.apple.com/us/episode/unrelated/umc.cmc.wrong",
+                web_url: "https://tv.apple.com/us/episode/example/umc.cmc.episode",
               },
               {
                 source_id: 900,
@@ -323,10 +323,32 @@ describe("Watchmode client", () => {
     expect(offers).toMatchObject([
       {
         providerId: 371,
-        serviceHomeFallback: true,
-        destinationUrl: "https://tv.apple.com/",
+        destinationUrl: "https://tv.apple.com/us/episode/example/umc.cmc.episode",
       },
     ]);
+  });
+  it("skips a home-screen Android link and falls back to a content-level web URL", async () => {
+    const fetcher = vi.fn((input: string | URL | Request) =>
+      Promise.resolve(
+        requestPath(input).endsWith("/details")
+          ? jsonResponse({ id: 1, title: "Series", type: "series", network_names: ["Apple TV+"] })
+          : jsonResponse([
+              {
+                source_id: 371,
+                name: "Apple TV+",
+                type: "sub",
+                region: "US",
+                android_tv_url: "https://tv.apple.com/",
+                web_url: "https://tv.apple.com/us/show/example/umc.cmc.example",
+              },
+            ]),
+      ),
+    ) as unknown as typeof fetch;
+    const offers = await client(fetcher, 0, undefined, false).getEpisodeOffers("1", 1, 2, "US");
+    expect(offers[0]).toMatchObject({
+      destinationKind: "web",
+      destinationUrl: "https://tv.apple.com/us/show/example/umc.cmc.example",
+    });
   });
   it("matches the requested episode instead of trusting response order", async () => {
     const fetcher = vi.fn((input: string | URL | Request) => {
