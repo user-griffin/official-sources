@@ -11,6 +11,41 @@
   let providers = [];
 
   const selectedRows = () => [...list.children].filter((row) => row.querySelector("input").checked);
+  const providerFamily = (provider) => {
+    let name = provider.name
+      .replace(/\s*\(via\s+(?:amazon prime|hulu|apple tv)\)\s*$/i, "")
+      .replace(/\s+(?:amazon|apple tv)\s+channel\s*$/i, "")
+      .replace(/\s+with showtime\s*$/i, "")
+      .replace(/\s+premium plus\s*$/i, "")
+      .replace(/\s+premium\s*$/i, "")
+      .replace(/\s+free\s*$/i, "")
+      .trim();
+    if (/^apple\s*tv\+?$/i.test(name)) name = "Apple TV+";
+    if (/^(?:hbo max|max|hbo)$/i.test(name)) name = "Max";
+    if (/^(?:amazon prime|prime video)$/i.test(name)) name = "Prime Video";
+    if (/^amc plus$/i.test(name)) name = "AMC+";
+    return { key: name.toLowerCase().replace(/[^a-z0-9]+/g, ""), name };
+  };
+  const groupProviders = (items) => {
+    const groups = new Map();
+    items.forEach((provider) => {
+      const family = providerFamily(provider);
+      const group = groups.get(family.key) ?? {
+        id: provider.id,
+        ids: [],
+        name: family.name,
+        names: [],
+        logoUrl: provider.logoUrl,
+        hasSubscription: false,
+      };
+      group.ids.push(provider.id);
+      group.names.push(provider.name);
+      group.hasSubscription ||= provider.type === "subscription";
+      if (!group.logoUrl && provider.logoUrl) group.logoUrl = provider.logoUrl;
+      groups.set(family.key, group);
+    });
+    return [...groups.values()].filter((group) => group.hasSubscription);
+  };
   const encode = (value) => {
     const bytes = new TextEncoder().encode(JSON.stringify(value));
     let binary = "";
@@ -20,7 +55,13 @@
     return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
   };
   const config = () => {
-    const selected = selectedRows().map((row) => Number(row.dataset.id));
+    const selected = [
+      ...new Set(
+        selectedRows().flatMap((row) =>
+          (row.dataset.ids ?? "").split(",").filter(Boolean).map(Number),
+        ),
+      ),
+    ];
     const checked = (name) => form.elements[name].checked;
     return {
       v: 2,
@@ -65,7 +106,8 @@
       const row = document.createElement("li");
       row.className = "provider";
       row.dataset.id = String(provider.id);
-      row.dataset.name = provider.name.toLowerCase();
+      row.dataset.ids = provider.ids.join(",");
+      row.dataset.name = provider.names.join(" ").toLowerCase();
       if (provider.logoUrl) {
         const img = document.createElement("img");
         img.src = provider.logoUrl;
@@ -117,9 +159,9 @@
       );
       if (!response.ok) throw new Error("request failed");
       const data = await response.json();
-      providers = data.providers;
+      providers = groupProviders(data.providers);
       status.textContent = providers.length
-        ? `${providers.length} providers · ${data.source === "watchmode" ? "Live catalog" : "Fallback catalog"}`
+        ? `${providers.length} subscription services · ${data.providers.length} source variants collapsed · ${data.source === "watchmode" ? "Live catalog" : "Fallback catalog"}`
         : "No provider data for this region.";
       render();
     } catch {
