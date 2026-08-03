@@ -95,6 +95,39 @@ describe("Watchmode client", () => {
     ) as unknown as typeof fetch;
     expect((await client(fetcher).getMovieOffers("1", "US"))[0]?.type).toBe("free");
   });
+  it("suppresses a marketplace channel variant when the direct service is available", async () => {
+    const fetcher = vi.fn((input: string | URL | Request) =>
+      Promise.resolve(
+        requestPath(input).endsWith("/details")
+          ? jsonResponse({
+              id: 1,
+              title: "Series",
+              type: "series",
+              network_names: ["Apple TV+"],
+            })
+          : jsonResponse([
+              {
+                source_id: 371,
+                name: "Apple TV+",
+                type: "sub",
+                region: "US",
+                web_url: "https://tv.apple.com/show/severance",
+              },
+              {
+                source_id: 900,
+                name: "AppleTV+ Amazon Channel",
+                type: "sub",
+                region: "US",
+                web_url: "https://www.amazon.com/gp/video/detail/severance",
+              },
+            ]),
+      ),
+    ) as unknown as typeof fetch;
+
+    const offers = await client(fetcher).getMovieOffers("1", "US");
+
+    expect(offers.map((offer) => offer.providerName)).toEqual(["Apple TV+"]);
+  });
   it("resolves IMDb titles and negative-caches misses", async () => {
     const fetcher = vi.fn(() =>
       Promise.resolve(jsonResponse({ title_results: [], people_results: [] })),
@@ -222,6 +255,46 @@ describe("Watchmode client", () => {
     expect(mockFetch.mock.calls.some(([input]) => requestPath(input).includes("/episodes"))).toBe(
       false,
     );
+  });
+  it("excludes promotional free episodes from subscription providers in series fallbacks", async () => {
+    const fetcher = vi.fn((input: string | URL | Request) => {
+      const path = requestPath(input);
+      if (path.endsWith("/details")) {
+        return Promise.resolve(
+          jsonResponse({ id: 1, title: "Series", type: "series", network_names: [] }),
+        );
+      }
+      if (path === "/v1/sources") {
+        return Promise.resolve(
+          jsonResponse([
+            { id: 26, name: "Prime Video", type: "sub", regions: ["US"] },
+            { id: 73, name: "Tubi", type: "free", regions: ["US"] },
+          ]),
+        );
+      }
+      return Promise.resolve(
+        jsonResponse([
+          {
+            source_id: 26,
+            name: "Prime Video",
+            type: "free",
+            region: "US",
+            web_url: "https://www.amazon.com/gp/video/detail/promotional-episode",
+          },
+          {
+            source_id: 73,
+            name: "Tubi",
+            type: "free",
+            region: "US",
+            web_url: "https://tubitv.com/series/example",
+          },
+        ]),
+      );
+    }) as unknown as typeof fetch;
+
+    const offers = await client(fetcher, 0, undefined, false).getEpisodeOffers("1", 1, 2, "US");
+
+    expect(offers.map((offer) => offer.providerName)).toEqual(["Tubi"]);
   });
   it("rejects an unrelated episode URL as a series-page fallback", async () => {
     const fetcher = vi.fn((input: string | URL | Request) =>

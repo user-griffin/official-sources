@@ -82,8 +82,17 @@ function currency(country: string): string | undefined {
   )[country];
 }
 
+function marketplaceBaseName(name: string): string {
+  return name
+    .replace(/\s*\(via\s+(?:amazon prime|hulu|apple tv)\)\s*$/i, "")
+    .replace(/\s+(?:amazon(?: prime)?|apple tv|hulu)\s+channel\s*$/i, "")
+    .trim();
+}
+
 function canonicalServiceName(name: string): string {
-  const compact = name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const compact = marketplaceBaseName(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
   if (/apple(tv|television)/.test(compact)) return "appletv";
   if (/amazon|primevideo/.test(compact)) return "primevideo";
   if (compact === "max" || compact.startsWith("hbo")) return "hbomax";
@@ -91,6 +100,23 @@ function canonicalServiceName(name: string): string {
   if (/paramount/.test(compact)) return "paramountplus";
   if (/peacock/.test(compact)) return "peacock";
   return compact.replace(/premium|channel|network|television|streaming/g, "").replace(/plus$/g, "");
+}
+
+function isMarketplaceVariant(name: string): boolean {
+  return marketplaceBaseName(name) !== name.trim();
+}
+
+function preferDirectServiceOffers(items: NormalizedOffer[]): NormalizedOffer[] {
+  const directServices = new Set(
+    items
+      .filter((item) => !isMarketplaceVariant(item.providerName))
+      .map((item) => canonicalServiceName(item.providerName)),
+  );
+  return items.filter(
+    (item) =>
+      !isMarketplaceVariant(item.providerName) ||
+      !directServices.has(canonicalServiceName(item.providerName)),
+  );
 }
 
 function isHomeProvider(providerName: string, homeProviderNames: string[]): boolean {
@@ -321,9 +347,15 @@ export class WatchmodeClient implements WatchmodeClientContract {
     seriesFallback: boolean,
     homeProviderNames: string[],
     episodeContext?: { season: number; episode: number },
+    catalogProviderTypes?: ReadonlyMap<number, Provider["type"]>,
   ): NormalizedOffer[] {
-    return items
+    const normalized = items
       .filter((item) => item.region === country)
+      .filter((item) => {
+        if (!seriesFallback || item.type !== "free") return true;
+        const catalogType = catalogProviderTypes?.get(item.source_id);
+        return catalogType === undefined || catalogType === "free";
+      })
       .map((item) => {
         const destination = this.destination.resolve({
           ...(item.android_tv_url ? { android_tv: item.android_tv_url } : {}),
@@ -356,6 +388,24 @@ export class WatchmodeClient implements WatchmodeClientContract {
           !offer.destinationUrl ||
           !isObviousEpisodeDestination(offer.destinationUrl),
       );
+    return preferDirectServiceOffers(normalized);
+  }
+
+  private async getSeriesFallbackProviderTypes(
+    items: WmSource[],
+    country: string,
+  ): Promise<ReadonlyMap<number, Provider["type"]> | undefined> {
+    if (!items.some((item) => item.type === "free")) return undefined;
+    try {
+      const providers = await this.getProviders(country);
+      return new Map(providers.map((provider) => [provider.id, provider.type]));
+    } catch (error) {
+      this.options.logger.warn("watchmode_provider_types_unavailable", {
+        upstream: "watchmode",
+        category: error instanceof WatchmodeError ? error.category : "unknown",
+      });
+      return undefined;
+    }
   }
 
   async getMovieOffers(titleId: string, country: string): Promise<NormalizedOffer[]> {
@@ -409,10 +459,16 @@ export class WatchmodeClient implements WatchmodeClientContract {
             ),
             this.getTitleContext(titleId),
           ]);
-          return this.normalize(series, country, false, true, context.homeProviderNames, {
-            season,
-            episode,
-          });
+          const providerTypes = await this.getSeriesFallbackProviderTypes(series, country);
+          return this.normalize(
+            series,
+            country,
+            false,
+            true,
+            context.homeProviderNames,
+            { season, episode },
+            providerTypes,
+          );
         }
         const [episodes, context] = await Promise.all([
           this.request(
@@ -437,10 +493,16 @@ export class WatchmodeClient implements WatchmodeClientContract {
           `/title/${encodeURIComponent(titleId)}/sources?regions=${encodeURIComponent(country)}`,
           wmSourcesSchema,
         );
-        return this.normalize(series, country, false, true, context.homeProviderNames, {
-          season,
-          episode,
-        });
+        const providerTypes = await this.getSeriesFallbackProviderTypes(series, country);
+        return this.normalize(
+          series,
+          country,
+          false,
+          true,
+          context.homeProviderNames,
+          { season, episode },
+          providerTypes,
+        );
       },
     );
   }
