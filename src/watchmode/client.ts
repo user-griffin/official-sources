@@ -103,6 +103,15 @@ function isHomeProvider(providerName: string, homeProviderNames: string[]): bool
   });
 }
 
+function isObviousEpisodeDestination(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return /\/(?:episode|episodes)\//i.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+}
+
 export class WatchmodeClient implements WatchmodeClientContract {
   readonly upstream = "watchmode" as const;
   private readonly baseUrl = "https://api.watchmode.com/v1";
@@ -340,7 +349,13 @@ export class WatchmodeClient implements WatchmodeClientContract {
           sourceProvider: "watchmode" as const,
           ...(isHomeProvider(item.name, homeProviderNames) ? { isHomeProvider: true } : {}),
         };
-      });
+      })
+      .filter(
+        (offer) =>
+          !seriesFallback ||
+          !offer.destinationUrl ||
+          !isObviousEpisodeDestination(offer.destinationUrl),
+      );
   }
 
   async getMovieOffers(titleId: string, country: string): Promise<NormalizedOffer[]> {

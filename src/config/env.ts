@@ -28,7 +28,6 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1000).default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().min(10).default(120),
   GITHUB_REPOSITORY_URL: optionalUrl,
-  APP_VERSION: z.string().default("1.1.0"),
   COMMIT_SHA: z
     .string()
     .max(100)

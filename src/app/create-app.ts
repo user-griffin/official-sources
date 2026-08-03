@@ -7,7 +7,7 @@ import { decodeConfig, tokenFingerprint } from "../config/token.js";
 import type { Logger } from "../logging/logger.js";
 import { fallbackProviders } from "../providers/fallback.js";
 import type { AvailabilityProvider, RankingEngine } from "../providers/interfaces.js";
-import { createManifest } from "../stremio/manifest.js";
+import { APP_VERSION, createManifest } from "../stremio/manifest.js";
 import { configurePage, landingPage } from "../web/pages.js";
 import { OfficialSourcesService } from "./service.js";
 
@@ -99,11 +99,11 @@ export function createApp(dependencies: AppDependencies) {
   app.get("/", (_request, response) => response.type("html").send(landingPage(env)));
   app.get("/configure", (_request, response) => response.type("html").send(configurePage()));
   app.get("/health", (_request, response) =>
-    response.json({ status: "ok", service: "official-sources", version: env.APP_VERSION }),
+    response.json({ status: "ok", service: "official-sources", version: APP_VERSION }),
   );
   app.get("/version", (_request, response) =>
     response.json({
-      version: env.APP_VERSION,
+      version: APP_VERSION,
       commitSha: env.COMMIT_SHA ?? env.RAILWAY_GIT_COMMIT_SHA ?? null,
       buildDate: env.BUILD_DATE ?? null,
       environment: env.NODE_ENV,

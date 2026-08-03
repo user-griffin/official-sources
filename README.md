@@ -68,7 +68,7 @@ The server binds `0.0.0.0:$PORT` (default `7000`). Normal verification is `npm r
 8. Generate and install a configured manifest in Nuvio, then move Official Sources to the top of the installed addon order.
 9. Future pushes to the linked branch redeploy automatically under Railway's GitHub integration.
 
-`PUBLIC_BASE_URL` takes precedence over Railway's public domain when explicitly set. `APP_VERSION`, `COMMIT_SHA`, and `BUILD_DATE` populate `/version`; Railway's commit SHA is used as a fallback.
+`PUBLIC_BASE_URL` takes precedence over Railway's public domain when explicitly set. The application version comes from the same source constant as the manifest; `COMMIT_SHA` and `BUILD_DATE` populate the remaining `/version` metadata, with Railway's commit SHA used as a fallback.
 
 ## Privacy and security
 

@@ -1,9 +1,11 @@
 import { addonBuilder, type Manifest } from "stremio-addon-sdk";
 
+export const APP_VERSION = "1.1.0";
+
 function rawManifest(configurationRequired: boolean): Manifest {
   return {
     id: "com.officialsources.nuvio",
-    version: "1.1.0",
+    version: APP_VERSION,
     name: "Official Sources",
     description:
       "Opens legitimate streaming-provider applications and websites. Independent and unofficial.",

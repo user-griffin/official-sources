@@ -205,6 +205,32 @@ describe("Watchmode client", () => {
       false,
     );
   });
+  it("rejects an unrelated episode URL as a series-page fallback", async () => {
+    const fetcher = vi.fn((input: string | URL | Request) =>
+      Promise.resolve(
+        requestPath(input).endsWith("/details")
+          ? jsonResponse({ id: 1, title: "Series", type: "series", network_names: ["Apple TV+"] })
+          : jsonResponse([
+              {
+                source_id: 371,
+                name: "AppleTV+",
+                type: "sub",
+                region: "US",
+                web_url: "https://tv.apple.com/us/episode/unrelated/umc.cmc.wrong",
+              },
+              {
+                source_id: 900,
+                name: "AppleTV+ Amazon Channel",
+                type: "sub",
+                region: "US",
+                web_url: "https://watch.amazon.com/detail/example",
+              },
+            ]),
+      ),
+    ) as unknown as typeof fetch;
+    const offers = await client(fetcher, 0, undefined, false).getEpisodeOffers("1", 1, 2, "US");
+    expect(offers.map((offer) => offer.providerId)).toEqual([900]);
+  });
   it("matches the requested episode instead of trusting response order", async () => {
     const fetcher = vi.fn((input: string | URL | Request) => {
       const path = requestPath(input);
