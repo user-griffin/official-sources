@@ -296,7 +296,7 @@ describe("Watchmode client", () => {
 
     expect(offers.map((offer) => offer.providerName)).toEqual(["Tubi"]);
   });
-  it("rejects an unrelated episode URL as a series-page fallback", async () => {
+  it("uses a direct service homepage instead of an unrelated episode or channel variant", async () => {
     const fetcher = vi.fn((input: string | URL | Request) =>
       Promise.resolve(
         requestPath(input).endsWith("/details")
@@ -320,7 +320,13 @@ describe("Watchmode client", () => {
       ),
     ) as unknown as typeof fetch;
     const offers = await client(fetcher, 0, undefined, false).getEpisodeOffers("1", 1, 2, "US");
-    expect(offers.map((offer) => offer.providerId)).toEqual([900]);
+    expect(offers).toMatchObject([
+      {
+        providerId: 371,
+        serviceHomeFallback: true,
+        destinationUrl: "https://tv.apple.com/",
+      },
+    ]);
   });
   it("matches the requested episode instead of trusting response order", async () => {
     const fetcher = vi.fn((input: string | URL | Request) => {

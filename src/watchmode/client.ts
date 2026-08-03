@@ -138,6 +138,14 @@ function isObviousEpisodeDestination(url: string): boolean {
   }
 }
 
+function serviceHomepage(url: string): string | undefined {
+  try {
+    return `${new URL(url).origin}/`;
+  } catch {
+    return undefined;
+  }
+}
+
 export class WatchmodeClient implements WatchmodeClientContract {
   readonly upstream = "watchmode" as const;
   private readonly baseUrl = "https://api.watchmode.com/v1";
@@ -357,11 +365,25 @@ export class WatchmodeClient implements WatchmodeClientContract {
         return catalogType === undefined || catalogType === "free";
       })
       .map((item) => {
-        const destination = this.destination.resolve({
+        let destination = this.destination.resolve({
           ...(item.android_tv_url ? { android_tv: item.android_tv_url } : {}),
           ...(item.android_url ? { android: item.android_url } : {}),
           ...(item.web_url ? { web: item.web_url } : {}),
         });
+        let serviceHomeFallback = false;
+        if (
+          seriesFallback &&
+          destination &&
+          isObviousEpisodeDestination(destination.url) &&
+          !isMarketplaceVariant(item.name) &&
+          isHomeProvider(item.name, homeProviderNames)
+        ) {
+          const homepage = serviceHomepage(destination.url);
+          if (homepage) {
+            destination = { url: homepage, kind: "web" };
+            serviceHomeFallback = true;
+          }
+        }
         const offerCurrency = currency(country);
         return {
           providerId: item.source_id,
@@ -375,6 +397,7 @@ export class WatchmodeClient implements WatchmodeClientContract {
             : {}),
           exactEpisode,
           seriesFallback,
+          ...(serviceHomeFallback ? { serviceHomeFallback: true } : {}),
           ...(episodeContext
             ? { seasonNumber: episodeContext.season, episodeNumber: episodeContext.episode }
             : {}),
@@ -385,6 +408,7 @@ export class WatchmodeClient implements WatchmodeClientContract {
       .filter(
         (offer) =>
           !seriesFallback ||
+          offer.serviceHomeFallback ||
           !offer.destinationUrl ||
           !isObviousEpisodeDestination(offer.destinationUrl),
       );

@@ -31,6 +31,7 @@ export interface NormalizedOffer {
   destinationKind?: DestinationKind;
   exactEpisode: boolean;
   seriesFallback: boolean;
+  serviceHomeFallback?: boolean;
   seasonNumber?: number;
   episodeNumber?: number;
   sourceProvider: "watchmode";
