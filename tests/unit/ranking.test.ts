@@ -92,6 +92,16 @@ describe("filtering and ranking", () => {
       ),
     ).toEqual([severanceAppleOffer]);
   });
+  it("keeps a selected service label when a free provider shares its destination", () => {
+    const free = {
+      ...severanceAppleOffer,
+      providerId: 999,
+      providerName: "Free channel",
+      type: "free" as const,
+      isHomeProvider: false,
+    };
+    expect(filterOffers([free, severanceAppleOffer], config)).toEqual([severanceAppleOffer]);
+  });
   it("hides unselected subscriptions but keeps global free sources", () => {
     const unselectedSubscription = {
       ...severanceAppleOffer,

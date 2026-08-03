@@ -27,7 +27,8 @@ export function filterOffers(offers: NormalizedOffer[], config: AddonConfig): No
   if (!config.collapseDuplicates) return filtered;
   const exactSeen = new Set<string>();
   const contentSeen = new Map<string, number>();
-  return filtered.filter((offer) => {
+  const collapsed: NormalizedOffer[] = [];
+  for (const offer of filtered) {
     const exactKey = [
       offer.providerId,
       offer.type,
@@ -38,16 +39,24 @@ export function filterOffers(offers: NormalizedOffer[], config: AddonConfig): No
       offer.seriesFallback,
       offer.quality ?? "",
     ].join("|");
-    if (exactSeen.has(exactKey)) return false;
+    if (exactSeen.has(exactKey)) continue;
     exactSeen.add(exactKey);
     if (offer.destinationUrl && offer.type !== "rent" && offer.type !== "purchase") {
       const contentKey = [offer.destinationUrl, offer.exactEpisode, offer.seriesFallback].join("|");
-      const existingProvider = contentSeen.get(contentKey);
-      if (existingProvider !== undefined && existingProvider !== offer.providerId) return false;
-      contentSeen.set(contentKey, offer.providerId);
+      const existingIndex = contentSeen.get(contentKey);
+      if (existingIndex !== undefined) {
+        const existing = collapsed[existingIndex];
+        if (existing && existing.providerId !== offer.providerId) {
+          const preference = (item: NormalizedOffer): number =>
+            Number(item.isHomeProvider) * 2 + Number(selected.has(item.providerId));
+          if (preference(offer) > preference(existing)) collapsed[existingIndex] = offer;
+          continue;
+        }
+      } else contentSeen.set(contentKey, collapsed.length);
     }
-    return true;
-  });
+    collapsed.push(offer);
+  }
+  return collapsed;
 }
 
 const offerRank: Record<OfferType, number> = {
