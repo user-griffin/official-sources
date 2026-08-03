@@ -3,12 +3,19 @@ import type { Cache } from "../cache/ttl-cache.js";
 import type { Logger } from "../logging/logger.js";
 import type { WatchmodeClientContract } from "../providers/interfaces.js";
 import { SafeDestinationResolver } from "../security/destination.js";
-import type { NormalizedOffer, OfferType, Provider, ResolvedTitle } from "../types/models.js";
+import type {
+  MediaTitleId,
+  NormalizedOffer,
+  OfferType,
+  Provider,
+  ResolvedTitle,
+} from "../types/models.js";
 import {
   wmEpisodesSchema,
   wmProvidersSchema,
   wmSearchSchema,
   wmSourcesSchema,
+  wmTitleDetailsSchema,
   type wmSourceSchema,
 } from "./schemas.js";
 
@@ -32,6 +39,7 @@ interface ClientOptions {
   fetch?: FetchLike;
   timeoutMs: number;
   maxRetries: number;
+  episodeLinksEnabled: boolean;
   providerTtlMs: number;
   titleTtlMs: number;
   sourceTtlMs: number;
@@ -72,6 +80,27 @@ function currency(country: string): string | undefined {
       NL: "EUR",
     } as Record<string, string>
   )[country];
+}
+
+function canonicalServiceName(name: string): string {
+  const compact = name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  if (/apple(tv|television)/.test(compact)) return "appletv";
+  if (/amazon|primevideo/.test(compact)) return "primevideo";
+  if (compact === "max" || compact.startsWith("hbo")) return "hbomax";
+  if (/disney/.test(compact)) return "disneyplus";
+  if (/paramount/.test(compact)) return "paramountplus";
+  if (/peacock/.test(compact)) return "peacock";
+  return compact.replace(/premium|channel|network|television|streaming/g, "").replace(/plus$/g, "");
+}
+
+function isHomeProvider(providerName: string, homeProviderNames: string[]): boolean {
+  const provider = canonicalServiceName(providerName);
+  return homeProviderNames.some((name) => {
+    const home = canonicalServiceName(name);
+    return (
+      home.length >= 3 && (provider === home || provider.includes(home) || home.includes(provider))
+    );
+  });
 }
 
 export class WatchmodeClient implements WatchmodeClientContract {
@@ -179,8 +208,44 @@ export class WatchmodeClient implements WatchmodeClientContract {
     });
   }
 
-  async resolveTitleByImdb(imdbId: string): Promise<ResolvedTitle | null> {
-    const key = `wm:title:${imdbId}`;
+  private async getTitleContext(
+    titleId: string,
+  ): Promise<{ imdbId?: string; homeProviderNames: string[] }> {
+    const key = `wm:title-context:${titleId}`;
+    const cached = this.options.cache.get<{ imdbId?: string; homeProviderNames: string[] }>(key);
+    if (cached !== undefined) return cached;
+    return this.options.cache.getOrSet(
+      key,
+      (value) =>
+        value.homeProviderNames.length ? this.options.providerTtlMs : this.options.negativeTtlMs,
+      async () => {
+        try {
+          const details = await this.request(
+            `/title/${encodeURIComponent(titleId)}/details`,
+            wmTitleDetailsSchema,
+          );
+          return {
+            ...(details.imdb_id ? { imdbId: details.imdb_id } : {}),
+            homeProviderNames: details.network_names ?? [],
+          };
+        } catch (error) {
+          this.options.logger.warn("watchmode_title_context_unavailable", {
+            upstream: "watchmode",
+            category: error instanceof WatchmodeError ? error.category : "unknown",
+          });
+          return { homeProviderNames: [] };
+        }
+      },
+    );
+  }
+
+  private async resolveBySearch(
+    key: string,
+    searchField: "imdb_id" | "tmdb_movie_id" | "tmdb_tv_id",
+    searchValue: string,
+    expectedType?: "movie" | "series",
+    externalId?: MediaTitleId,
+  ): Promise<ResolvedTitle | null> {
     const cached = this.options.cache.get<ResolvedTitle | null>(key);
     this.options.logger.debug("cache_lookup", {
       upstream: "watchmode",
@@ -193,21 +258,50 @@ export class WatchmodeClient implements WatchmodeClientContract {
       (value) => (value ? this.options.titleTtlMs : this.options.negativeTtlMs),
       async () => {
         const result = await this.request(
-          `/search?search_field=imdb_id&search_value=${encodeURIComponent(imdbId)}`,
+          `/search?search_field=${searchField}&search_value=${encodeURIComponent(searchValue)}`,
           wmSearchSchema,
         );
-        const item =
-          result.title_results.find((candidate) => candidate.imdb_id === imdbId) ??
-          result.title_results[0];
-        return item
-          ? {
-              id: String(item.id),
-              imdbId,
-              name: item.name,
-              type: item.type === "movie" ? ("movie" as const) : ("series" as const),
-            }
-          : null;
+        const item = result.title_results.find((candidate) => {
+          const type = candidate.type === "movie" ? "movie" : "series";
+          return !expectedType || type === expectedType;
+        });
+        if (!item) return null;
+        const type = item.type === "movie" ? ("movie" as const) : ("series" as const);
+        const details = await this.getTitleContext(String(item.id));
+        const imdbId = item.imdb_id ?? details.imdbId;
+        const resolvedExternalId =
+          externalId ??
+          (imdbId ? ({ scheme: "imdb", value: imdbId, mediaType: type } as const) : null);
+        if (!resolvedExternalId) return null;
+        return {
+          id: String(item.id),
+          externalId: resolvedExternalId,
+          ...(imdbId ? { imdbId } : {}),
+          name: item.name,
+          type,
+          homeProviderNames: details.homeProviderNames,
+        };
       },
+    );
+  }
+
+  async resolveTitleByImdb(imdbId: string): Promise<ResolvedTitle | null> {
+    return this.resolveBySearch(`wm:title:imdb:any:${imdbId}`, "imdb_id", imdbId);
+  }
+
+  async resolveTitleById(titleId: MediaTitleId): Promise<ResolvedTitle | null> {
+    const field =
+      titleId.scheme === "imdb"
+        ? "imdb_id"
+        : titleId.mediaType === "movie"
+          ? "tmdb_movie_id"
+          : "tmdb_tv_id";
+    return this.resolveBySearch(
+      `wm:title:${titleId.scheme}:${titleId.mediaType}:${titleId.value}`,
+      field,
+      String(titleId.value),
+      titleId.mediaType,
+      titleId,
     );
   }
 
@@ -216,6 +310,8 @@ export class WatchmodeClient implements WatchmodeClientContract {
     country: string,
     exactEpisode: boolean,
     seriesFallback: boolean,
+    homeProviderNames: string[],
+    episodeContext?: { season: number; episode: number },
   ): NormalizedOffer[] {
     return items
       .filter((item) => item.region === country)
@@ -238,7 +334,11 @@ export class WatchmodeClient implements WatchmodeClientContract {
             : {}),
           exactEpisode,
           seriesFallback,
+          ...(episodeContext
+            ? { seasonNumber: episodeContext.season, episodeNumber: episodeContext.episode }
+            : {}),
           sourceProvider: "watchmode" as const,
+          ...(isHomeProvider(item.name, homeProviderNames) ? { isHomeProvider: true } : {}),
         };
       });
   }
@@ -256,11 +356,14 @@ export class WatchmodeClient implements WatchmodeClientContract {
       key,
       (offers) => (offers.length ? this.options.sourceTtlMs : this.options.negativeTtlMs),
       async () => {
-        const items = await this.request(
-          `/title/${encodeURIComponent(titleId)}/sources?regions=${encodeURIComponent(country)}`,
-          wmSourcesSchema,
-        );
-        return this.normalize(items, country, false, false);
+        const [items, context] = await Promise.all([
+          this.request(
+            `/title/${encodeURIComponent(titleId)}/sources?regions=${encodeURIComponent(country)}`,
+            wmSourcesSchema,
+          ),
+          this.getTitleContext(titleId),
+        ]);
+        return this.normalize(items, country, false, false, context.homeProviderNames);
       },
     );
   }
@@ -283,18 +386,46 @@ export class WatchmodeClient implements WatchmodeClientContract {
       key,
       (offers) => (offers.length ? this.options.sourceTtlMs : this.options.negativeTtlMs),
       async () => {
-        const episodes = await this.request(
-          `/title/${encodeURIComponent(titleId)}/episodes?season=${season}&episode=${episode}&regions=${encodeURIComponent(country)}&limit=1`,
-          wmEpisodesSchema,
+        if (!this.options.episodeLinksEnabled) {
+          const [series, context] = await Promise.all([
+            this.request(
+              `/title/${encodeURIComponent(titleId)}/sources?regions=${encodeURIComponent(country)}`,
+              wmSourcesSchema,
+            ),
+            this.getTitleContext(titleId),
+          ]);
+          return this.normalize(series, country, false, true, context.homeProviderNames, {
+            season,
+            episode,
+          });
+        }
+        const [episodes, context] = await Promise.all([
+          this.request(
+            `/title/${encodeURIComponent(titleId)}/episodes?season=${season}&episode=${episode}&regions=${encodeURIComponent(country)}&limit=10`,
+            wmEpisodesSchema,
+          ),
+          this.getTitleContext(titleId),
+        ]);
+        const exact = episodes.find(
+          (item) => item.season_number === season && item.episode_number === episode,
         );
-        const exact = episodes[0]?.sources ?? [];
-        const exactOffers = this.normalize(exact, country, true, false);
+        const exactOffers = this.normalize(
+          exact?.sources ?? [],
+          country,
+          true,
+          false,
+          context.homeProviderNames,
+          { season, episode },
+        );
         if (exactOffers.some((offer) => offer.destinationUrl)) return exactOffers;
         const series = await this.request(
           `/title/${encodeURIComponent(titleId)}/sources?regions=${encodeURIComponent(country)}`,
           wmSourcesSchema,
         );
-        return this.normalize(series, country, false, true);
+        return this.normalize(series, country, false, true, context.homeProviderNames, {
+          season,
+          episode,
+        });
       },
     );
   }

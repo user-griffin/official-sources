@@ -9,7 +9,24 @@ const provider = {
     return [{ id: 371, name: "Apple TV+", type: "subscription", regions: ["US"] }];
   },
   async resolveTitleByImdb(imdbId) {
-    return { id: "123", imdbId, name: "Severance", type: "series" };
+    return {
+      id: "123",
+      externalId: { scheme: "imdb", value: imdbId, mediaType: "series" },
+      imdbId,
+      name: "Severance",
+      type: "series",
+      homeProviderNames: ["Apple TV+"],
+    };
+  },
+  async resolveTitleById(titleId) {
+    return {
+      id: "123",
+      externalId: titleId,
+      ...(titleId.scheme === "imdb" ? { imdbId: titleId.value } : {}),
+      name: "Severance",
+      type: titleId.mediaType,
+      homeProviderNames: ["Apple TV+"],
+    };
   },
   async getMovieOffers() {
     return [];
@@ -45,7 +62,7 @@ const address = server.address();
 if (!address || typeof address === "string") throw new Error("No server address");
 const base = `http://127.0.0.1:${address.port}`;
 const config = {
-  v: 1,
+  v: 2,
   country: "US",
   providers: [371],
   providerOrder: [371],
@@ -53,10 +70,10 @@ const config = {
   showSubscription: true,
   showFree: true,
   showAds: true,
-  showTvEverywhere: false,
-  showRent: false,
-  showPurchase: false,
-  showUnselected: false,
+  showTvEverywhere: true,
+  showRent: true,
+  showPurchase: true,
+  showUnselected: true,
   hideInvalidLinks: true,
   collapseDuplicates: true,
   allowSeriesFallback: true,

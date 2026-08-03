@@ -23,7 +23,7 @@
     const selected = selectedRows().map((row) => Number(row.dataset.id));
     const checked = (name) => form.elements[name].checked;
     return {
-      v: 1,
+      v: 2,
       country: country.value.toUpperCase(),
       providers: selected,
       providerOrder: selected,

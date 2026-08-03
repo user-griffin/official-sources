@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { addonConfigSchema, type AddonConfig } from "./schema.js";
+import { addonConfigSchema, legacyAddonConfigSchema, type AddonConfig } from "./schema.js";
 
 export const MAX_CONFIG_TOKEN_LENGTH = 4096;
 
@@ -23,12 +23,25 @@ export function decodeConfig(token: string): AddonConfig {
     const raw = Buffer.from(token, "base64url").toString("utf8");
     if (Buffer.byteLength(raw) > 8192) throw new Error("decoded token too large");
     const unknownPayload: unknown = JSON.parse(raw);
-    if (
-      typeof unknownPayload === "object" &&
-      unknownPayload !== null &&
-      "v" in unknownPayload &&
-      unknownPayload.v !== 1
-    ) {
+    if (typeof unknownPayload !== "object" || unknownPayload === null || !("v" in unknownPayload)) {
+      throw new ConfigTokenError("Unsupported configuration version");
+    }
+    if (unknownPayload.v === 1) {
+      const legacy = legacyAddonConfigSchema.parse(unknownPayload);
+      return addonConfigSchema.parse({
+        ...legacy,
+        v: 2,
+        providers: [],
+        providerOrder: [],
+        showTvEverywhere: true,
+        showRent: true,
+        showPurchase: true,
+        showUnselected: true,
+        allowSeriesFallback: true,
+        showSeriesFallback: true,
+      });
+    }
+    if (unknownPayload.v !== 2) {
       throw new ConfigTokenError("Unsupported configuration version");
     }
     return addonConfigSchema.parse(unknownPayload);

@@ -3,7 +3,12 @@ import { MemoryTtlCache } from "../../src/cache/ttl-cache.js";
 import type { Logger } from "../../src/logging/logger.js";
 import { WatchmodeClient, WatchmodeError } from "../../src/watchmode/client.js";
 
-function client(fetcher: typeof fetch, maxRetries = 0, logger?: Logger) {
+function client(
+  fetcher: typeof fetch,
+  maxRetries = 0,
+  logger?: Logger,
+  episodeLinksEnabled = true,
+) {
   return new WatchmodeClient({
     apiKey: "super-secret-key",
     cache: new MemoryTtlCache(),
@@ -16,6 +21,7 @@ function client(fetcher: typeof fetch, maxRetries = 0, logger?: Logger) {
     fetch: fetcher,
     timeoutMs: 20,
     maxRetries,
+    episodeLinksEnabled,
     providerTtlMs: 1000,
     titleTtlMs: 1000,
     sourceTtlMs: 1000,
@@ -32,9 +38,10 @@ function requestPath(input: string | URL | Request): string {
 
 describe("Watchmode client", () => {
   it("normalizes successful providers and offers", async () => {
-    const fetcher = vi.fn((input: string | URL | Request) =>
-      Promise.resolve(
-        requestPath(input) === "/v1/sources"
+    const fetcher = vi.fn((input: string | URL | Request) => {
+      const path = requestPath(input);
+      return Promise.resolve(
+        path === "/v1/sources"
           ? jsonResponse([
               {
                 id: 371,
@@ -44,18 +51,25 @@ describe("Watchmode client", () => {
                 regions: ["US"],
               },
             ])
-          : jsonResponse([
-              {
-                source_id: 371,
-                name: "Apple TV+",
-                type: "sub",
-                region: "US",
-                android_tv_url: "https://tv.apple.com/show/example",
-                web_url: "https://tv.apple.com/show/example",
-              },
-            ]),
-      ),
-    ) as unknown as typeof fetch;
+          : path.endsWith("/details")
+            ? jsonResponse({
+                id: 1,
+                title: "Example",
+                type: "movie",
+                network_names: ["Apple TV+"],
+              })
+            : jsonResponse([
+                {
+                  source_id: 371,
+                  name: "Apple TV+",
+                  type: "sub",
+                  region: "US",
+                  android_tv_url: "https://tv.apple.com/show/example",
+                  web_url: "https://tv.apple.com/show/example",
+                },
+              ]),
+      );
+    }) as unknown as typeof fetch;
     const instance = client(fetcher);
     expect((await instance.getProviders("US"))[0]?.name).toBe("Apple TV+");
     expect((await instance.getMovieOffers("1", "US"))[0]).toMatchObject({
@@ -73,8 +87,17 @@ describe("Watchmode client", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
   it("deduplicates concurrent title requests", async () => {
-    const fetcher = vi.fn(async () => {
+    const fetcher = vi.fn(async (input: string | URL | Request) => {
       await Promise.resolve();
+      if (requestPath(input).endsWith("/details")) {
+        return jsonResponse({
+          id: 1,
+          title: "Movie",
+          type: "movie",
+          imdb_id: "tt1234567",
+          network_names: [],
+        });
+      }
       return jsonResponse({
         title_results: [{ id: 1, name: "Movie", type: "movie", imdb_id: "tt1234567" }],
       });
@@ -84,7 +107,7 @@ describe("Watchmode client", () => {
       instance.resolveTitleByImdb("tt1234567"),
       instance.resolveTitleByImdb("tt1234567"),
     ]);
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
   it("retries temporary and rate-limited responses", async () => {
     for (const status of [429, 503]) {
@@ -120,8 +143,8 @@ describe("Watchmode client", () => {
     expect(JSON.stringify(logs)).not.toContain("super-secret-key");
     expect(mockFetch.mock.calls[0]?.[0]).not.toContain("super-secret-key");
   });
-  it("uses series fallback when exact episode sources have no valid link", async () => {
-    const fetcher = vi.fn((input: string | URL | Request) =>
+  it("uses a labeled series fallback when exact episode sources have no valid link", async () => {
+    const mockFetch = vi.fn((input: string | URL | Request) =>
       Promise.resolve(
         requestPath(input).includes("episodes")
           ? jsonResponse([
@@ -150,10 +173,72 @@ describe("Watchmode client", () => {
               },
             ]),
       ),
-    ) as unknown as typeof fetch;
+    );
+    const fetcher = mockFetch as unknown as typeof fetch;
     expect((await client(fetcher).getEpisodeOffers("1", 1, 1, "US"))[0]).toMatchObject({
       seriesFallback: true,
       exactEpisode: false,
+      seasonNumber: 1,
+      episodeNumber: 1,
+    });
+  });
+  it("skips the unavailable episode endpoint on the free plan", async () => {
+    const mockFetch = vi.fn((input: string | URL | Request) =>
+      Promise.resolve(
+        requestPath(input).endsWith("/details")
+          ? jsonResponse({ id: 1, title: "Series", type: "series", network_names: [] })
+          : jsonResponse([
+              {
+                source_id: 371,
+                name: "Apple TV+",
+                type: "sub",
+                region: "US",
+                web_url: "https://tv.apple.com/show/example",
+              },
+            ]),
+      ),
+    );
+    const fetcher = mockFetch as unknown as typeof fetch;
+    const offers = await client(fetcher, 0, undefined, false).getEpisodeOffers("1", 1, 2, "US");
+    expect(offers[0]).toMatchObject({ seriesFallback: true, seasonNumber: 1, episodeNumber: 2 });
+    expect(mockFetch.mock.calls.some(([input]) => requestPath(input).includes("/episodes"))).toBe(
+      false,
+    );
+  });
+  it("matches the requested episode instead of trusting response order", async () => {
+    const fetcher = vi.fn((input: string | URL | Request) => {
+      const path = requestPath(input);
+      if (path.endsWith("/details")) {
+        return Promise.resolve(
+          jsonResponse({ id: 1, title: "Series", type: "series", network_names: ["Netflix"] }),
+        );
+      }
+      return Promise.resolve(
+        jsonResponse([
+          { id: 8, season_number: 1, episode_number: 1, sources: [] },
+          {
+            id: 9,
+            season_number: 1,
+            episode_number: 2,
+            sources: [
+              {
+                source_id: 203,
+                name: "Netflix",
+                type: "sub",
+                region: "US",
+                web_url: "https://www.netflix.com/watch/123",
+              },
+            ],
+          },
+        ]),
+      );
+    }) as unknown as typeof fetch;
+    expect((await client(fetcher).getEpisodeOffers("1", 1, 2, "US"))[0]).toMatchObject({
+      providerId: 203,
+      exactEpisode: true,
+      isHomeProvider: true,
+      seasonNumber: 1,
+      episodeNumber: 2,
     });
   });
 });

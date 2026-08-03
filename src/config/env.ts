@@ -17,6 +17,10 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   REQUEST_TIMEOUT_MS: z.coerce.number().int().min(100).max(60_000).default(5000),
   WATCHMODE_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
+  WATCHMODE_EPISODE_LINKS_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   CACHE_PROVIDER_TTL_SECONDS: z.coerce.number().int().min(60).max(2_592_000).default(86_400),
   CACHE_TITLE_TTL_SECONDS: z.coerce.number().int().min(60).max(2_592_000).default(604_800),
   CACHE_SOURCE_TTL_SECONDS: z.coerce.number().int().min(60).max(2_592_000).default(21_600),
@@ -24,7 +28,7 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1000).default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().min(10).default(120),
   GITHUB_REPOSITORY_URL: optionalUrl,
-  APP_VERSION: z.string().default("1.0.0"),
+  APP_VERSION: z.string().default("1.1.0"),
   COMMIT_SHA: z
     .string()
     .max(100)

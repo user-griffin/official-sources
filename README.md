@@ -1,6 +1,6 @@
 # Official Sources
 
-Official Sources is an open-source, Stremio-compatible availability addon designed primarily for Nuvio TV. It places legitimate subscription, free, ad-supported, TV Everywhere, rental, and purchase destinations in a user's source list. Selecting a result opens the provider's official Android/Android TV destination when Watchmode supplies one, otherwise its exact official HTTPS title page.
+Official Sources is an open-source, Stremio-compatible availability addon designed primarily for Nuvio TV. It places legitimate subscription, free, ad-supported, TV Everywhere, rental, and purchase destinations in a user's source list. It shows all validated regional offers by default and ranks the title's detected original network or home service first. Selecting a result opens the provider's official Android/Android TV destination when Watchmode supplies one, otherwise its official HTTPS title or series page.
 
 It does **not** play, download, proxy, decrypt, scrape, or redistribute video. It does not accept provider credentials, cookies, access tokens, manifests, DRM licenses, streams, or viewing history. Authentication, entitlement checks, DRM, and playback stay in the provider app or website.
 
@@ -8,14 +8,14 @@ Official Sources is an independent, unofficial project and is not affiliated wit
 
 ## How it works
 
-The configuration page retrieves the provider catalog through the server, then encodes non-sensitive preferences into a versioned base64url token in the addon URL. On a source request, the server validates the token and IMDb ID, looks up Watchmode availability, validates destinations, filters and ranks offers, and returns standard Stremio `externalUrl` streams. There is no database.
+The configuration page retrieves the provider catalog through the server, then encodes non-sensitive preferences into a versioned base64url token in the addon URL. On a source request, the server validates the token and IMDb or TMDB ID, looks up Watchmode availability and title-network metadata, validates destinations, filters and ranks offers, and returns standard Stremio `externalUrl` streams. There is no database.
 
 Provider order is deterministic inside this addon. Nuvio controls order between addons. After installation, open Nuvio's installed addon list and move **Official Sources** to the top so its group appears before later addons. Nuvio may still prioritize direct-debrid groups according to its own current behavior.
 
 ## Configure and install
 
 1. Open `/configure` on the deployed service.
-2. Enter a two-letter region, choose subscriptions, and move providers into priority order.
+2. Enter a two-letter region. Optionally choose subscriptions and move them into preference order; the detected home service still ranks first.
 3. Choose allowed offer types and fallback behavior.
 4. Copy the generated HTTPS manifest URL or use **Install / open**.
 5. Add that URL in Nuvio or Stremio, then reorder the addon in Nuvio as described above.
@@ -32,7 +32,7 @@ The unconfigured `/manifest.json` advertises that configuration is required. Con
 
 Set `WATCHMODE_API_KEY` on the server. Current Watchmode documentation recommends `X-API-Key`; this project never puts the key into a query string, browser code, token, response, or log. Provider catalog data is live when the key is available and falls back to a small list when it is not. Stream requests without a key safely return no results.
 
-Watchmode plan capabilities vary. Android links may contain a paid-plan placeholder on free plans; Android TV fields appear only when TV links are enabled; exact episode web/deep links are also paid-plan-dependent. The addon rejects placeholder values and never invents URLs. HTTPS links may open installed apps through Android App Links. Otherwise Android opens a browser. Some providers expose only a series page, so direct episode navigation cannot be guaranteed. Provider apps behave differently and this addon does not verify subscriptions.
+Watchmode's free Developer plan does not include iOS/Android deep links or episode-level links. With the default `WATCHMODE_EPISODE_LINKS_ENABLED=false`, the addon avoids wasting free-plan quota on the unavailable episode endpoint and returns a validated official series page labeled with the requested `SxEy` to choose inside the provider app. If an account with episode links is ever used, set the flag to `true`; the addon then verifies the returned season and episode before labeling a result exact and falls back when necessary. It rejects paid-plan placeholders and never invents URLs. HTTPS links may still open installed apps through Android App Links; otherwise Android opens a browser. Provider apps behave differently and this addon does not verify subscriptions.
 
 Availability data is provided by [Watchmode](https://www.watchmode.com/). Confirm your account's attribution and caching obligations before a public deployment.
 
@@ -76,9 +76,9 @@ See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md). CORS is intentional
 
 ## Troubleshooting
 
-- Empty results: check the configured region, selected services/offer types, Watchmode key and quota, and whether Watchmode has the title.
+- Empty results: check the configured region, offer types, Watchmode key and quota, and whether Watchmode has the title. Version 2 shows unselected official services by default.
 - A browser opens instead of an app: the provider may not have claimed that HTTPS App Link, its app may be absent, or an Android default may override it.
-- Series page instead of episode: exact links are provider- and Watchmode-plan-dependent; the result is explicitly labeled.
+- Series page instead of episode: the free Watchmode plan has no episode-level links; the result is explicitly labeled with the episode to choose in the app.
 - Official Sources appears later: reorder installed addons in Nuvio. This addon cannot globally outrank other addon groups.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md), [RESEARCH.md](RESEARCH.md), and [CONTRIBUTING.md](CONTRIBUTING.md) for implementation details.

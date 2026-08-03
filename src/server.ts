@@ -11,6 +11,7 @@ const logger = createLogger(env.LOG_LEVEL);
 const cache = new MemoryTtlCache();
 const unavailableProvider: AvailabilityProvider = {
   getProviders: () => Promise.reject(new Error("WATCHMODE_API_KEY is not configured")),
+  resolveTitleById: () => Promise.resolve(null),
   resolveTitleByImdb: () => Promise.resolve(null),
   getMovieOffers: () => Promise.resolve([]),
   getEpisodeOffers: () => Promise.resolve([]),
@@ -22,6 +23,7 @@ const provider = env.WATCHMODE_API_KEY
       logger,
       timeoutMs: env.REQUEST_TIMEOUT_MS,
       maxRetries: env.WATCHMODE_MAX_RETRIES,
+      episodeLinksEnabled: env.WATCHMODE_EPISODE_LINKS_ENABLED,
       providerTtlMs: env.CACHE_PROVIDER_TTL_SECONDS * 1000,
       titleTtlMs: env.CACHE_TITLE_TTL_SECONDS * 1000,
       sourceTtlMs: env.CACHE_SOURCE_TTL_SECONDS * 1000,

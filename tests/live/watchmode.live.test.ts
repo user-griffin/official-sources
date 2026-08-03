@@ -11,6 +11,7 @@ describe.skipIf(!key)("live Watchmode smoke", () => {
     logger: silentLogger,
     timeoutMs: 8000,
     maxRetries: 1,
+    episodeLinksEnabled: false,
     providerTtlMs: 1000,
     titleTtlMs: 1000,
     sourceTtlMs: 1000,

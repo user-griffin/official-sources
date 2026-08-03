@@ -1,6 +1,6 @@
 {
   "name": "official-sources",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A Stremio-compatible addon that links to legitimate streaming-service destinations.",
   "type": "module",
   "private": false,

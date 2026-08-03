@@ -9,6 +9,7 @@ export const severanceAppleOffer: NormalizedOffer = {
   exactEpisode: false,
   seriesFallback: false,
   sourceProvider: "watchmode",
+  isHomeProvider: true,
 };
 export const severanceExactEpisode: NormalizedOffer = {
   ...severanceAppleOffer,
@@ -19,6 +20,8 @@ export const severanceSeriesFallback: NormalizedOffer = {
   ...severanceAppleOffer,
   exactEpisode: false,
   seriesFallback: true,
+  seasonNumber: 1,
+  episodeNumber: 3,
   destinationKind: "web",
 };
 export const multiServiceMovie: NormalizedOffer[] = [
@@ -28,6 +31,7 @@ export const multiServiceMovie: NormalizedOffer[] = [
     providerId: 203,
     providerName: "Netflix",
     destinationUrl: "https://www.netflix.com/title/123",
+    isHomeProvider: false,
   },
   {
     ...severanceAppleOffer,
@@ -38,6 +42,7 @@ export const multiServiceMovie: NormalizedOffer[] = [
     price: 3.99,
     currency: "USD",
     destinationKind: "web",
+    isHomeProvider: false,
   },
   {
     ...severanceAppleOffer,
@@ -46,6 +51,7 @@ export const multiServiceMovie: NormalizedOffer[] = [
     destinationUrl: "https://www.peacocktv.com/watch/example",
     type: "ads",
     destinationKind: "web",
+    isHomeProvider: false,
   },
   {
     ...severanceAppleOffer,
@@ -54,6 +60,7 @@ export const multiServiceMovie: NormalizedOffer[] = [
     destinationUrl: "https://example.com/title",
     type: "tv_everywhere",
     destinationKind: "web",
+    isHomeProvider: false,
   },
   {
     ...severanceAppleOffer,
@@ -64,6 +71,7 @@ export const multiServiceMovie: NormalizedOffer[] = [
     price: 14.99,
     currency: "USD",
     destinationKind: "web",
+    isHomeProvider: false,
   },
 ];
 export const unavailableTitle: NormalizedOffer[] = [];

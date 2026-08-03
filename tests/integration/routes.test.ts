@@ -35,10 +35,10 @@ describe("HTTP routes", () => {
     expect((await request(app).get("/health")).body).toEqual({
       status: "ok",
       service: "official-sources",
-      version: "1.0.0",
+      version: "1.1.0",
     });
     expect((await request(app).get("/version")).body).toMatchObject({
-      version: "1.0.0",
+      version: "1.1.0",
       environment: "test",
     });
   });
@@ -76,7 +76,7 @@ describe("HTTP routes", () => {
     expect(
       (await request(setupResult.app).get(`/c/${configured()}/stream/series/tt11280740:1:3.json`))
         .body.streams[0].title,
-    ).toContain("Series page fallback");
+    ).toContain("Official series page");
     expect(
       (
         await request(setupResult.app).get(

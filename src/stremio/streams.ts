@@ -14,22 +14,29 @@ function money(offer: NormalizedOffer, config: AddonConfig): string {
 }
 
 function label(offer: NormalizedOffer, config: AddonConfig): string {
-  if (offer.seriesFallback) return "Series page fallback • Exact episode link unavailable";
+  if (offer.seriesFallback) {
+    const target =
+      offer.seasonNumber !== undefined && offer.episodeNumber !== undefined
+        ? `S${offer.seasonNumber}E${offer.episodeNumber}`
+        : "the requested episode";
+    return `Official series page • Choose ${target} in the provider app`;
+  }
   const action = offer.destinationKind === "web" ? "Open official website" : "Open official app";
-  if (offer.exactEpisode) return `Exact episode • ${action}`;
+  const home = offer.isHomeProvider ? "Home service • " : "";
+  if (offer.exactEpisode) return `${home}Exact episode • ${action}`;
   switch (offer.type) {
     case "subscription":
-      return `Included with your subscription • ${action}`;
+      return `${home}${config.providers.includes(offer.providerId) ? "Included with your subscription" : "Subscription"} • ${action}`;
     case "free":
-      return `Free • ${action}`;
+      return `${home}Free • ${action}`;
     case "ads":
-      return `Free with ads • ${action}`;
+      return `${home}Free with ads • ${action}`;
     case "tv_everywhere":
-      return "TV provider login required";
+      return `${home}TV provider login required`;
     case "rent":
-      return ["Rent", money(offer, config), action].filter(Boolean).join(" • ");
+      return [`${home}Rent`, money(offer, config), action].filter(Boolean).join(" • ");
     case "purchase":
-      return ["Buy", money(offer, config), action].filter(Boolean).join(" • ");
+      return [`${home}Buy`, money(offer, config), action].filter(Boolean).join(" • ");
   }
 }
 

@@ -12,9 +12,11 @@ export interface Provider {
 
 export interface ResolvedTitle {
   id: string;
-  imdbId: string;
+  externalId: MediaTitleId;
+  imdbId?: string;
   name: string;
   type: "movie" | "series";
+  homeProviderNames: string[];
 }
 
 export interface NormalizedOffer {
@@ -29,12 +31,19 @@ export interface NormalizedOffer {
   destinationKind?: DestinationKind;
   exactEpisode: boolean;
   seriesFallback: boolean;
+  seasonNumber?: number;
+  episodeNumber?: number;
   sourceProvider: "watchmode";
+  isHomeProvider?: boolean;
 }
 
+export type MediaTitleId =
+  | { scheme: "imdb"; value: string; mediaType: "movie" | "series" }
+  | { scheme: "tmdb"; value: number; mediaType: "movie" | "series" };
+
 export type ParsedMediaId =
-  | { kind: "movie"; imdbId: string }
-  | { kind: "episode"; imdbId: string; season: number; episode: number };
+  | { kind: "movie"; titleId: MediaTitleId }
+  | { kind: "episode"; titleId: MediaTitleId; season: number; episode: number };
 
 export interface StremioStream {
   name: string;

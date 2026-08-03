@@ -59,6 +59,7 @@ export class DeterministicRankingEngine implements RankingEngine {
     return offers
       .map((offer, index) => ({ offer, index }))
       .sort((a, b) => {
+        const home = Number(!a.offer.isHomeProvider) - Number(!b.offer.isHomeProvider);
         const aSelected = selected.has(a.offer.providerId) ? 0 : 1;
         const bSelected = selected.has(b.offer.providerId) ? 0 : 1;
         const selection = config.selectedFirst ? aSelected - bSelected : 0;
@@ -76,6 +77,7 @@ export class DeterministicRankingEngine implements RankingEngine {
             ? (a.offer.price ?? Infinity) - (b.offer.price ?? Infinity)
             : 0;
         return (
+          home ||
           selection ||
           type ||
           provider ||

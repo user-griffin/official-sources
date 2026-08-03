@@ -29,6 +29,16 @@ export const wmSearchSchema = z
   })
   .passthrough();
 
+export const wmTitleDetailsSchema = z
+  .object({
+    id: z.number().int().positive(),
+    title: z.string(),
+    type: z.string(),
+    imdb_id: z.string().nullable().optional(),
+    network_names: z.array(z.string()).nullable().optional(),
+  })
+  .passthrough();
+
 export const wmSourceSchema = z
   .object({
     source_id: z.number().int().positive(),

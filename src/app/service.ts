@@ -14,7 +14,7 @@ export class OfficialSourcesService {
   async getStreams(type: string, id: string, config: AddonConfig): Promise<StremioStream[]> {
     const media = parseMediaId(type, id);
     if (!media) return [];
-    const title = await this.provider.resolveTitleByImdb(media.imdbId);
+    const title = await this.provider.resolveTitleById(media.titleId);
     if (!title) return [];
     const offers =
       media.kind === "movie"

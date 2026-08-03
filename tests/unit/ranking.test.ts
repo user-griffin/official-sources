@@ -20,7 +20,12 @@ const config = {
 
 describe("filtering and ranking", () => {
   it("places selected before unselected and subscription/free before rental", () => {
-    const unselected = { ...severanceAppleOffer, providerId: 999, providerName: "Other" };
+    const unselected = {
+      ...severanceAppleOffer,
+      providerId: 999,
+      providerName: "Other",
+      isHomeProvider: false,
+    };
     const ranked = engine.rank([unselected, ...multiServiceMovie], {
       ...config,
       showUnselected: true,
@@ -33,8 +38,18 @@ describe("filtering and ranking", () => {
       ranked.findIndex((item) => item.type === "rent"),
     );
   });
-  it("honors provider priority", () =>
-    expect(engine.rank(multiServiceMovie.slice(0, 2), config)[0]?.providerId).toBe(203));
+  it("honors provider priority among non-home services", () =>
+    expect(
+      engine.rank(
+        multiServiceMovie.slice(0, 2).map((offer) => ({ ...offer, isHomeProvider: false })),
+        config,
+      )[0]?.providerId,
+    ).toBe(203));
+  it("always places a detected home service before a selected provider", () => {
+    const selectedApple = { ...severanceAppleOffer, isHomeProvider: false };
+    const homeNetflix = { ...multiServiceMovie[1]!, isHomeProvider: true };
+    expect(engine.rank([selectedApple, homeNetflix], config)[0]?.providerId).toBe(203);
+  });
   it("orders rental and purchase prices lowest first", () => {
     for (const type of ["rent", "purchase"] as const) {
       const offers: NormalizedOffer[] = [5.99, 2.99].map((price, index) => ({
@@ -53,7 +68,10 @@ describe("filtering and ranking", () => {
   it("prefers exact episode over fallback", () =>
     expect(
       engine.rank(
-        [severanceSeriesFallback, { ...severanceAppleOffer, exactEpisode: true }],
+        [
+          { ...severanceSeriesFallback, isHomeProvider: false },
+          { ...severanceAppleOffer, exactEpisode: true },
+        ],
         config,
       )[0]?.exactEpisode,
     ).toBe(true));

@@ -1,8 +1,9 @@
-import type { NormalizedOffer, Provider, ResolvedTitle } from "../types/models.js";
+import type { MediaTitleId, NormalizedOffer, Provider, ResolvedTitle } from "../types/models.js";
 import type { AddonConfig } from "../config/schema.js";
 
 export interface AvailabilityProvider {
   getProviders(country: string): Promise<Provider[]>;
+  resolveTitleById(titleId: MediaTitleId): Promise<ResolvedTitle | null>;
   resolveTitleByImdb(imdbId: string): Promise<ResolvedTitle | null>;
   getMovieOffers(titleId: string, country: string): Promise<NormalizedOffer[]>;
   getEpisodeOffers(

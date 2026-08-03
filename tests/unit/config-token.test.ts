@@ -11,8 +11,30 @@ describe("configuration tokens", () => {
   });
   it("rejects unsupported versions", () =>
     expect(() =>
-      decodeConfig(Buffer.from(JSON.stringify({ ...defaultConfig, v: 2 })).toString("base64url")),
+      decodeConfig(Buffer.from(JSON.stringify({ ...defaultConfig, v: 3 })).toString("base64url")),
     ).toThrow(/Unsupported/));
+  it("migrates Apple-only v1 installs to broad official-source discovery", () => {
+    const legacy = {
+      ...defaultConfig,
+      v: 1,
+      providers: [371],
+      providerOrder: [371],
+      showTvEverywhere: false,
+      showRent: false,
+      showPurchase: false,
+      showUnselected: false,
+    };
+    const migrated = decodeConfig(Buffer.from(JSON.stringify(legacy)).toString("base64url"));
+    expect(migrated).toMatchObject({
+      v: 2,
+      providers: [],
+      providerOrder: [],
+      showTvEverywhere: true,
+      showRent: true,
+      showPurchase: true,
+      showUnselected: true,
+    });
+  });
   it("rejects malformed and oversized tokens", () => {
     expect(() => decodeConfig("not*base64")).toThrow();
     expect(() => decodeConfig("a".repeat(MAX_CONFIG_TOKEN_LENGTH + 1))).toThrow();
@@ -24,7 +46,7 @@ describe("configuration tokens", () => {
     expect(
       addonConfigSchema.safeParse({
         ...defaultConfig,
-        providers: Array.from({ length: 101 }, (_, index) => index + 1),
+        providers: Array.from({ length: 251 }, (_, index) => index + 1),
       }).success,
     ).toBe(false);
   });
