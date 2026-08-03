@@ -13,7 +13,7 @@ describe("configuration tokens", () => {
     expect(() =>
       decodeConfig(Buffer.from(JSON.stringify({ ...defaultConfig, v: 3 })).toString("base64url")),
     ).toThrow(/Unsupported/));
-  it("migrates Apple-only v1 installs to broad official-source discovery", () => {
+  it("migrates v1 installs to selected subscriptions plus free-source discovery", () => {
     const legacy = {
       ...defaultConfig,
       v: 1,
@@ -27,12 +27,12 @@ describe("configuration tokens", () => {
     const migrated = decodeConfig(Buffer.from(JSON.stringify(legacy)).toString("base64url"));
     expect(migrated).toMatchObject({
       v: 2,
-      providers: [],
-      providerOrder: [],
-      showTvEverywhere: true,
-      showRent: true,
-      showPurchase: true,
-      showUnselected: true,
+      providers: [371],
+      providerOrder: [371],
+      showTvEverywhere: false,
+      showRent: false,
+      showPurchase: false,
+      showUnselected: false,
     });
   });
   it("rejects malformed and oversized tokens", () => {

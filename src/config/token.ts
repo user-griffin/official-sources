@@ -31,12 +31,12 @@ export function decodeConfig(token: string): AddonConfig {
       return addonConfigSchema.parse({
         ...legacy,
         v: 2,
-        providers: [],
-        providerOrder: [],
-        showTvEverywhere: true,
-        showRent: true,
-        showPurchase: true,
-        showUnselected: true,
+        providers: legacy.providers,
+        providerOrder: legacy.providerOrder,
+        showTvEverywhere: false,
+        showRent: false,
+        showPurchase: false,
+        showUnselected: false,
         allowSeriesFallback: true,
         showSeriesFallback: true,
       });

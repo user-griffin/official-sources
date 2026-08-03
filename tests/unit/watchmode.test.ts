@@ -77,6 +77,24 @@ describe("Watchmode client", () => {
       destinationKind: "android_tv",
     });
   });
+  it("normalizes Watchmode free sources as globally eligible free offers", async () => {
+    const fetcher = vi.fn((input: string | URL | Request) =>
+      Promise.resolve(
+        requestPath(input).endsWith("/details")
+          ? jsonResponse({ id: 1, title: "Movie", type: "movie", network_names: [] })
+          : jsonResponse([
+              {
+                source_id: 365,
+                name: "Amazon Freevee",
+                type: "free",
+                region: "US",
+                web_url: "https://www.amazon.com/gp/video/detail/example",
+              },
+            ]),
+      ),
+    ) as unknown as typeof fetch;
+    expect((await client(fetcher).getMovieOffers("1", "US"))[0]?.type).toBe("free");
+  });
   it("resolves IMDb titles and negative-caches misses", async () => {
     const fetcher = vi.fn(() =>
       Promise.resolve(jsonResponse({ title_results: [], people_results: [] })),

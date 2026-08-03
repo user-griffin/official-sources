@@ -17,7 +17,8 @@ export function filterOffers(offers: NormalizedOffer[], config: AddonConfig): No
   const selected = new Set(config.providers);
   const filtered = offers.filter((offer) => {
     if (!enabled(offer.type, config)) return false;
-    if (!selected.has(offer.providerId) && !config.showUnselected) return false;
+    if (offer.type === "subscription" && !selected.has(offer.providerId) && !config.showUnselected)
+      return false;
     if (!offer.destinationUrl && config.hideInvalidLinks) return false;
     if (offer.seriesFallback && (!config.allowSeriesFallback || !config.showSeriesFallback))
       return false;

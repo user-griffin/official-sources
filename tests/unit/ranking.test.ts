@@ -81,6 +81,27 @@ describe("filtering and ranking", () => {
       filterOffers([severanceAppleOffer, { ...severanceAppleOffer, type: "free" }], config),
     ).toHaveLength(2);
   });
+  it("hides unselected subscriptions but keeps global free sources", () => {
+    const unselectedSubscription = {
+      ...severanceAppleOffer,
+      providerId: 999,
+      isHomeProvider: false,
+    };
+    const freeSource = {
+      ...severanceAppleOffer,
+      providerId: 998,
+      type: "free" as const,
+      isHomeProvider: false,
+    };
+    expect(
+      filterOffers([unselectedSubscription, freeSource], {
+        ...defaultConfig,
+        providers: [371],
+        providerOrder: [371],
+        showUnselected: false,
+      }),
+    ).toEqual([freeSource]);
+  });
   it("is stable and deterministic", () =>
     expect(engine.rank([severanceAppleOffer, { ...severanceAppleOffer }], config)).toEqual([
       severanceAppleOffer,

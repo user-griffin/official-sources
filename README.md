@@ -1,6 +1,6 @@
 # Official Sources
 
-Official Sources is an open-source, Stremio-compatible availability addon designed primarily for Nuvio TV. It places legitimate subscription, free, ad-supported, TV Everywhere, rental, and purchase destinations in a user's source list. It shows all validated regional offers by default and ranks the title's detected original network or home service first. Selecting a result opens the provider's official Android/Android TV destination when Watchmode supplies one, otherwise its official HTTPS title or series page.
+Official Sources is an open-source, Stremio-compatible availability addon designed primarily for Nuvio TV. It places legitimate subscription and free destinations in a user's source list, with optional TV Everywhere, rental, and purchase results. By default it shows selected paid subscriptions plus eligible free services and hides unselected paid subscriptions. Selecting a result opens the provider's official Android/Android TV destination when Watchmode supplies one, otherwise its official HTTPS title or series page.
 
 It does **not** play, download, proxy, decrypt, scrape, or redistribute video. It does not accept provider credentials, cookies, access tokens, manifests, DRM licenses, streams, or viewing history. Authentication, entitlement checks, DRM, and playback stay in the provider app or website.
 
@@ -15,7 +15,7 @@ Provider order is deterministic inside this addon. Nuvio controls order between 
 ## Configure and install
 
 1. Open `/configure` on the deployed service.
-2. Enter a two-letter region. Optionally choose subscriptions and move them into preference order; the detected home service still ranks first.
+2. Enter a two-letter region, choose your paid subscriptions, and move them into preference order. Eligible free sources do not need to be selected individually.
 3. Choose allowed offer types and fallback behavior.
 4. Copy the generated HTTPS manifest URL or use **Install / open**.
 5. Add that URL in Nuvio or Stremio, then reorder the addon in Nuvio as described above.
@@ -76,7 +76,7 @@ See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md). CORS is intentional
 
 ## Troubleshooting
 
-- Empty results: check the configured region, offer types, Watchmode key and quota, and whether Watchmode has the title. Version 2 shows unselected official services by default.
+- Empty results: check the configured region, selected subscriptions, offer types, Watchmode key and quota, and whether Watchmode has the title. Eligible free sources bypass the paid-subscription selection filter.
 - A browser opens instead of an app: the provider may not have claimed that HTTPS App Link, its app may be absent, or an Android default may override it.
 - Series page instead of episode: the free Watchmode plan has no episode-level links; the result is explicitly labeled with the episode to choose in the app.
 - Official Sources appears later: reorder installed addons in Nuvio. This addon cannot globally outrank other addon groups.

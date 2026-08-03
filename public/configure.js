@@ -71,7 +71,7 @@
       selectedFirst: checked("selectedFirst"),
       showSubscription: checked("showSubscription"),
       showFree: checked("showFree"),
-      showAds: checked("showAds"),
+      showAds: checked("showFree"),
       showTvEverywhere: checked("showTvEverywhere"),
       showRent: checked("showRent"),
       showPurchase: checked("showPurchase"),

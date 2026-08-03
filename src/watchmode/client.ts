@@ -53,7 +53,7 @@ function sourceType(type: WmSource["type"]): OfferType {
       sub: "subscription",
       rent: "rent",
       buy: "purchase",
-      free: "ads",
+      free: "free",
       tve: "tv_everywhere",
     } as const
   )[type];
