@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canonicalTitleDestination,
   isSafeDestination,
   isTitleLevelDestination,
   SafeDestinationResolver,
@@ -61,4 +62,16 @@ describe("destination security", () => {
     "https://tubitv.com/home",
     "https://pluto.tv/us/on-demand",
   ])("rejects service landing URL %s", (url) => expect(isTitleLevelDestination(url)).toBe(false));
+  it("canonicalizes an Apple episode URL to its show ID", () =>
+    expect(
+      canonicalTitleDestination(
+        "https://tv.apple.com/us/episode/sweet-vitriol/umc.cmc.episode?showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+      ),
+    ).toBe("https://tv.apple.com/show/umc.cmc.1srk2goyh2q2zdxcx605w8vtx"));
+  it("canonicalizes a Peacock episode URL to its series page", () =>
+    expect(
+      canonicalTitleDestination(
+        "https://www.peacocktv.com/watch/asset/tv/poker-face/9091855651030489112/seasons/1/episodes/rest-in-metal-episode-4/episode-id",
+      ),
+    ).toBe("https://www.peacocktv.com/watch/asset/tv/poker-face/9091855651030489112"));
 });

@@ -25,9 +25,10 @@ export function filterOffers(offers: NormalizedOffer[], config: AddonConfig): No
     return true;
   });
   if (!config.collapseDuplicates) return filtered;
-  const seen = new Set<string>();
+  const exactSeen = new Set<string>();
+  const contentSeen = new Map<string, number>();
   return filtered.filter((offer) => {
-    const key = [
+    const exactKey = [
       offer.providerId,
       offer.type,
       offer.price ?? "",
@@ -37,8 +38,14 @@ export function filterOffers(offers: NormalizedOffer[], config: AddonConfig): No
       offer.seriesFallback,
       offer.quality ?? "",
     ].join("|");
-    if (seen.has(key)) return false;
-    seen.add(key);
+    if (exactSeen.has(exactKey)) return false;
+    exactSeen.add(exactKey);
+    if (offer.destinationUrl && offer.type !== "rent" && offer.type !== "purchase") {
+      const contentKey = [offer.destinationUrl, offer.exactEpisode, offer.seriesFallback].join("|");
+      const existingProvider = contentSeen.get(contentKey);
+      if (existingProvider !== undefined && existingProvider !== offer.providerId) return false;
+      contentSeen.set(contentKey, offer.providerId);
+    }
     return true;
   });
 }

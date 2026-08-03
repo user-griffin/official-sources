@@ -81,6 +81,17 @@ describe("filtering and ranking", () => {
       filterOffers([severanceAppleOffer, { ...severanceAppleOffer, type: "free" }], config),
     ).toHaveLength(2);
   });
+  it("collapses different provider labels that open the same non-purchase destination", () => {
+    expect(
+      filterOffers(
+        [
+          severanceAppleOffer,
+          { ...severanceAppleOffer, providerId: 999, providerName: "Channel variant" },
+        ],
+        config,
+      ),
+    ).toEqual([severanceAppleOffer]);
+  });
   it("hides unselected subscriptions but keeps global free sources", () => {
     const unselectedSubscription = {
       ...severanceAppleOffer,

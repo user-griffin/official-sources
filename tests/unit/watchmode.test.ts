@@ -296,7 +296,7 @@ describe("Watchmode client", () => {
 
     expect(offers.map((offer) => offer.providerName)).toEqual(["Tubi"]);
   });
-  it("preserves a title-associated Apple episode URL instead of replacing it with home", async () => {
+  it("canonicalizes a title-associated Apple episode URL to its show page", async () => {
     const fetcher = vi.fn((input: string | URL | Request) =>
       Promise.resolve(
         requestPath(input).endsWith("/details")
@@ -307,7 +307,8 @@ describe("Watchmode client", () => {
                 name: "AppleTV+",
                 type: "sub",
                 region: "US",
-                web_url: "https://tv.apple.com/us/episode/example/umc.cmc.episode",
+                web_url:
+                  "https://tv.apple.com/us/episode/example/umc.cmc.episode?showId=umc.cmc.series",
               },
               {
                 source_id: 900,
@@ -323,7 +324,7 @@ describe("Watchmode client", () => {
     expect(offers).toMatchObject([
       {
         providerId: 371,
-        destinationUrl: "https://tv.apple.com/us/episode/example/umc.cmc.episode",
+        destinationUrl: "https://tv.apple.com/show/umc.cmc.series",
       },
     ]);
   });

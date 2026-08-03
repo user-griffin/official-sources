@@ -2,7 +2,11 @@ import type { z } from "zod";
 import type { Cache } from "../cache/ttl-cache.js";
 import type { Logger } from "../logging/logger.js";
 import type { WatchmodeClientContract } from "../providers/interfaces.js";
-import { isTitleLevelDestination, SafeDestinationResolver } from "../security/destination.js";
+import {
+  canonicalTitleDestination,
+  isTitleLevelDestination,
+  SafeDestinationResolver,
+} from "../security/destination.js";
 import type {
   MediaTitleId,
   NormalizedOffer,
@@ -356,6 +360,9 @@ export class WatchmodeClient implements WatchmodeClientContract {
           ] as const
         )
           .map(([kind, value]) => this.destination.resolve(value ? { [kind]: value } : {}))
+          .map((candidate) =>
+            candidate ? { ...candidate, url: canonicalTitleDestination(candidate.url) } : undefined,
+          )
           .find((candidate) =>
             candidate ? isTitleLevelDestination(candidate.url, item.name) : false,
           );

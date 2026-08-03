@@ -77,6 +77,22 @@ export function isSafeDestination(value: string | undefined): value is string {
   return true;
 }
 
+export function canonicalTitleDestination(value: string): string {
+  if (!isSafeDestination(value)) return value;
+  const url = new URL(value);
+  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  if (host === "tv.apple.com" && /(?:^|\/)episode\//i.test(url.pathname)) {
+    const showId = url.searchParams.get("showId");
+    if (showId && /^umc\.cmc\.[a-z0-9]+$/i.test(showId))
+      return `${url.origin}/show/${encodeURIComponent(showId)}`;
+  }
+  if (host.endsWith("peacocktv.com")) {
+    const series = url.pathname.match(/^(\/watch\/asset\/tv\/[^/]+\/[^/]+)(?:\/seasons\/.*)?$/i);
+    if (series?.[1]) return `${url.origin}${series[1]}`;
+  }
+  return value;
+}
+
 export function isTitleLevelDestination(value: string, _providerName = ""): boolean {
   if (!isSafeDestination(value)) return false;
   const url = new URL(value);
