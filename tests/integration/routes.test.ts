@@ -31,7 +31,12 @@ describe("HTTP routes", () => {
   it("serves root, configure, health and version", async () => {
     const { app } = setup();
     expect((await request(app).get("/")).text).toContain("Official Sources");
-    expect((await request(app).get("/configure")).text).toContain("Build your source lineup");
+    const configure = await request(app).get("/configure");
+    expect(configure.text).toContain("Build your source lineup");
+    expect(configure.text).toContain("configure.js?v=1.1.1");
+    expect((await request(app).get("/assets/configure.js?v=1.1.1")).headers["cache-control"]).toBe(
+      "no-store",
+    );
     expect((await request(app).get("/health")).body).toEqual({
       status: "ok",
       service: "official-sources",

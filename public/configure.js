@@ -62,7 +62,7 @@
         ),
       ),
     ];
-    const checked = (name) => form.elements[name].checked;
+    const checked = (name) => Boolean(form.elements[name]?.checked);
     return {
       v: 2,
       country: country.value.toUpperCase(),
@@ -147,6 +147,11 @@
       });
       row.append(controls);
       box.addEventListener("change", update);
+      row.addEventListener("click", (event) => {
+        if (event.target.closest("button, input, label")) return;
+        box.checked = !box.checked;
+        update();
+      });
       list.append(row);
     });
     update();

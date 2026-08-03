@@ -93,6 +93,9 @@ export function createApp(dependencies: AppDependencies) {
     express.static("public", {
       fallthrough: false,
       maxAge: env.NODE_ENV === "production" ? "1h" : 0,
+      setHeaders(response, path) {
+        if (path.endsWith("configure.js")) response.setHeader("Cache-Control", "no-store");
+      },
     }),
   );
 

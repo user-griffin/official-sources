@@ -210,6 +210,7 @@ input[readonly],
   border: 1px solid var(--line);
   border-radius: 9px;
   background: #0c1016;
+  cursor: pointer;
 }
 .provider[hidden] {
   display: none;
@@ -225,8 +226,16 @@ input[readonly],
   align-items: center;
   gap: 10px;
 }
+.provider-name input[type="checkbox"] {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
 .provider-name label {
   margin: 0;
+  cursor: pointer;
 }
 .move-buttons {
   display: flex;
